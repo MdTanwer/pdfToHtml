@@ -28,7 +28,7 @@ if (!fs.existsSync(htmlDir)) {
 app.use(express.json());
 // Routes
 
-app.use('/api/pdf', pdfRoutes);
+app.use('/api/v1', pdfRoutes);
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });

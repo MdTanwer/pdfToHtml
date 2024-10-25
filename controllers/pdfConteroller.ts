@@ -1,51 +1,55 @@
 import { Request, Response, NextFunction } from 'express';
-const  pdf2html = require('pdf2html');
 import path from 'path';
 import fs from 'fs';
+import { exec } from 'child_process';
+import ErrorHandler from '../utils/ErrorHandler';
+
 
 // Define the directory to save HTML files
-const HTML_DIR = path.join(__dirname, 'public', 'html');
+const HTML_DIR = path.join(__dirname, '..', 'public', 'html');
 
 // Ensure the directory exists
 if (!fs.existsSync(HTML_DIR)) {
   fs.mkdirSync(HTML_DIR, { recursive: true });
 }
 
-export const convertPdfToHtmll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+// Function to ensure quotes around file paths with special characters
+const quoteFilePath = (filePath: string) => {
+  return `"${filePath}"`; // Add quotes around the file path
+};
+
+// Renamed function to convert PDF to HTML
+export const convertPdfToHtml = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Ensure that the PDF file path is available
     const pdfPath = req.file?.path;
+    console.log(pdfPath)
 
     if (!pdfPath) {
-      res.status(400).json({ error: 'No PDF file provided' });
-      return;
+      return next(new ErrorHandler("filePath not found", 400));
     }
 
-    // Convert PDF to HTML using async/await
-    const html = await pdf2html.html(pdfPath);
+    const htmlFileName = `${Date.now()}.html`;
 
-    // Define the output HTML file path
-    const htmlFileName = `${Date.now()}.html`; // Unique file name
-    const htmlFilePath = path.join(HTML_DIR, htmlFileName);
-    console.log(htmlFilePath)
+    // Quote paths to handle special characters properly
+    const quotedPdfPath = quoteFilePath(pdfPath);
+    const quotedHtmlFilePath = quoteFilePath(htmlFileName);
+    const quotedHtmlDir = quoteFilePath(HTML_DIR);
 
-    fs.writeFile(htmlFilePath, html, (writeErr) => {
-      if (writeErr) {
-        console.error('Error saving HTML file:', writeErr);
-        res.status(500).json({ error: 'Failed to save HTML file' });
-        return;
+    // Command to convert PDF to HTML using pdf2htmlEX
+    const command = `pdf2htmlEX --dest-dir ${quotedHtmlDir} ${quotedPdfPath} ${quotedHtmlFilePath}`;
+
+    // Execute the conversion command
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        return next(new ErrorHandler(error.message, 400));
       }
 
-      console.log('HTML file saved at:', htmlFilePath);
+      console.log('Conversion result:', stdout || stderr);
 
-      // Generate the URL for the saved HTML file
       const htmlUrl = `${req.protocol}://${req.get('host')}/html/${htmlFileName}`;
-
-      // Send the URL as the response
       res.json({ url: htmlUrl });
     });
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Failed to convert PDF to HTML' });
+  } catch (error: any) {
+    return next(new ErrorHandler(error.message, 400));
   }
 };
