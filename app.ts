@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import pdfRoutes from './routes/pdf2html.routes';
 const app = express();
-const PORT = process.env.PORT || 9000;
+const PORT = process.env.PORT || 8000;
 
 // app.use(cors());
 
