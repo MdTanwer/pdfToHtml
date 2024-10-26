@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from 'uuid';
+import os from 'os';
 import { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import fs from 'fs';
@@ -21,17 +23,23 @@ const quoteFilePath = (filePath: string) => {
 // Renamed function to convert PDF to HTML
 export const convertPdfToHtml = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const pdfPath = req.file?.path;
-    console.log(pdfPath)
+    const pdfPath =  req.file?.buffer;
+    console.log( "pdf file path" ,pdfPath)
+    
 
     if (!pdfPath) {
       return next(new ErrorHandler("filePath not found", 400));
     }
 
-    const htmlFileName = `${Date.now()}.html`;
-
+         // Create a temporary file for the PDF buffer
+         const tempPdfPath = path.join(os.tmpdir(), `${uuidv4()}.pdf`);
+         await fs.promises.writeFile(tempPdfPath, pdfPath);
+        // Generate a unique name for the output HTML file
+        const htmlFileName = `${uuidv4()}.html`;
+    
+  
     // Quote paths to handle special characters properly
-    const quotedPdfPath = quoteFilePath(pdfPath);
+    const quotedPdfPath = quoteFilePath(tempPdfPath);
     const quotedHtmlFilePath = quoteFilePath(htmlFileName);
     const quotedHtmlDir = quoteFilePath(HTML_DIR);
 
@@ -53,3 +61,7 @@ export const convertPdfToHtml = async (req: Request, res: Response, next: NextFu
     return next(new ErrorHandler(error.message, 400));
   }
 };
+
+
+
+

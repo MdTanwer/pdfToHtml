@@ -10,11 +10,6 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 // app.use(cors());
-// Ensure the 'uploads' directory exists
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
 
 // Define the directory to serve static HTML files
 const HTML_DIR = path.join(__dirname, 'public', 'html');
@@ -32,3 +27,4 @@ app.use('/api/v1', pdfRoutes);
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
+
