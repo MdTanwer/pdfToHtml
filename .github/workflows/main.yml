@@ -1,0 +1,37 @@
+name: macOS Docker Build and Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Docker
+        run: |
+          brew install docker
+
+      - name: Build Docker Image
+        run: |
+          docker build -t my-app .
+
+      - name: Run Docker Container
+        run: |
+          docker run -d -p 8000:8000 my-app
+
+      - name: Run Tests
+        run: |
+          curl --fail http://localhost:8000/health || exit 1
+
+      - name: Stop Docker Container
+        run: |
+          docker ps -q | xargs -r docker stop
