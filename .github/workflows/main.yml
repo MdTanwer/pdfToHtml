@@ -16,25 +16,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Install Docker
+      # Install Docker CLI and set up Docker Buildx
+      - name: Set up Docker Buildx
         run: |
-          brew install --cask docker
-          open --background -a Docker
-          while ! docker system info > /dev/null 2>&1; do
-            echo "Waiting for Docker to start..."
-            sleep 5
-          done
-      - name: Enable BuildKit
-        run: |
-         echo '{
-         "experimental": true
-          }' > ~/.docker/config.json
+          brew install docker
+          docker buildx create --use
+          docker buildx inspect --bootstrap
 
       - name: Set DOCKER_BUILDKIT environment variable
         run: echo "DOCKER_BUILDKIT=1" >> $GITHUB_ENV
 
-      - name: Install Docker Buildx
-        run: docker buildx create --use
+      - name: Enable BuildKit
+        run: |
+          echo '{
+            "experimental": true
+          }' > ~/.docker/config.json
 
       - name: Build Docker Image
         run: docker build -t my-app .
@@ -43,7 +39,8 @@ jobs:
         run: docker run -d -p 8000:8000 my-app
 
       - name: Run Tests
-        run: curl --fail http://localhost:8000/health || exit 1
+        run: |
+          curl --fail http://localhost:8000/health || exit 1
 
       - name: Stop Docker Container
         run: |
