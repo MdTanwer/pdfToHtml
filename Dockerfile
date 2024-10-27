@@ -1,5 +1,5 @@
-# Use Ubuntu 20.04 as the base image
-FROM ubuntu:20.04
+# Base image for Node.js 14 with Ubuntu Bionic for compatibility
+FROM node:14-bionic AS base
 
 # Set the working directory
 WORKDIR /app
@@ -7,40 +7,59 @@ WORKDIR /app
 # Set non-interactive mode for apt-get
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Update package list and install dependencies, including curl
+# Install common dependencies
 RUN apt-get update && \
     apt-get install -y \
-    curl \
     libfontconfig1 \
     libcairo2 \
     libjpeg-turbo8 \
     wget \
+    build-essential \
+    git \
+    cmake \
+    libfreetype6-dev \
+    libpng-dev \
+    libpoppler-cpp-dev \
+    poppler-utils \
+    libspdlog-dev \
     && apt-get clean
 
-# Install Node.js and npm
-RUN curl -fsSL https://deb.nodesource.com/setup_14.x | bash - && \
-    apt-get install -y nodejs && \
-    apt-get clean
+# Use multi-stage build to handle multi-platform installations
+FROM base AS builder
 
+# Set an argument for the target architecture
+ARG TARGETARCH
 
-# Download and install pdf2htmlEX
-RUN wget https://github.com/pdf2htmlEX/pdf2htmlEX/releases/download/v0.18.8.rc1/pdf2htmlEX-0.18.8.rc1-master-20200630-Ubuntu-bionic-x86_64.deb && \
-    mv pdf2htmlEX-0.18.8.rc1-master-20200630-Ubuntu-bionic-x86_64.deb pdf2htmlEX.deb && \
-    apt-get install -y ./pdf2htmlEX.deb && \
-    rm pdf2htmlEX.deb
+# Install pdf2htmlEX based on the target architecture
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+    wget https://github.com/pdf2htmlEX/pdf2htmlEX/releases/download/v0.18.8.rc1/pdf2htmlEX-0.18.8.rc1-master-20200630-Ubuntu-bionic-x86_64.deb && \
+    dpkg -i pdf2htmlEX-0.18.8.rc1-master-20200630-Ubuntu-bionic-x86_64.deb && \
+    rm pdf2htmlEX-0.18.8.rc1-master-20200630-Ubuntu-bionic-x86_64.deb; \
+    else \
+    git clone https://github.com/pdf2htmlEX/pdf2htmlEX.git && \
+    cd pdf2htmlEX && \
+    cmake . && make && make install && \
+    cd .. && rm -rf pdf2htmlEX; \
+    fi
 
-
-# Copy package.json and package-lock.json
+# Install Node.js dependencies separately to leverage Docker caching
 COPY package*.json ./
-
-# Install project dependencies
 RUN npm install
 
-# Copy the rest of your application's code
+# Copy the rest of your application code
 COPY . .
 
 # Build the TypeScript code
 RUN npm run build
+
+# Final stage to create a smaller image
+FROM node:14-bionic AS final
+
+# Set the working directory
+WORKDIR /app
+
+# Copy built files from the builder stage
+COPY --from=builder /app /app
 
 # Expose the port your app runs on
 EXPOSE 8000
